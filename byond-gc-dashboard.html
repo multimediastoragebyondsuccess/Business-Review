@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BYOND Success — GC Performance Dashboard 2021</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --y:#FEE100;--yd:#C9B200;--yl:#FFFBE0;
+  --navy:#0F172A;--navylight:#1E293B;
+  --blk:#1A1A1A;--g50:#F9FAFB;--g100:#F3F4F6;--g200:#E5E7EB;--g300:#D1D5DB;--g400:#9CA3AF;--g500:#6B7280;--g700:#374151;
+  --wh:#FFFFFF;--grn:#22C55E;--red:#EF4444;--org:#F59E0B;
+  --r:12px;--sh:0 2px 16px rgba(0,0,0,.07);--shm:0 4px 28px rgba(0,0,0,.10);
+}
+body{font-family:'Inter',sans-serif;background:var(--g50);color:var(--blk);min-height:100vh;}
+
+/* ── HEADER ── */
+.hdr{background:var(--navy);height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 32px;position:sticky;top:0;z-index:200;border-bottom:2px solid rgba(254,225,0,.15);}
+.hdr-left{display:flex;align-items:center;gap:14px;}
+.badge{background:var(--y);color:var(--navy);font-family:'Montserrat',sans-serif;font-weight:900;font-size:13px;padding:4px 12px;border-radius:4px;letter-spacing:.06em;}
+.hdr-title{color:#fff;font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;letter-spacing:.02em;}
+.hdr-right{color:var(--g400);font-size:11px;}
+.hdr-right span{color:var(--y);}
+
+/* ── HERO ── */
+.hero{background:var(--navy);padding:44px 32px 52px;position:relative;overflow:hidden;}
+.hero::before{content:'';position:absolute;right:-80px;top:-80px;width:380px;height:380px;background:var(--y);opacity:.04;border-radius:50%;}
+.hero::after{content:'';position:absolute;left:30%;bottom:-120px;width:280px;height:280px;background:var(--y);opacity:.03;border-radius:50%;}
+.hero-eyebrow{color:var(--y);font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;margin-bottom:10px;}
+.hero-title{color:#fff;font-family:'Montserrat',sans-serif;font-size:34px;font-weight:900;line-height:1.08;margin-bottom:6px;}
+.hero-title em{color:var(--y);font-style:normal;}
+.hero-sub{color:var(--g400);font-size:12px;margin-bottom:38px;max-width:520px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.kpi{background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.08);border-radius:var(--r);padding:18px 20px;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--y);}
+.kpi-lbl{color:var(--g400);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px;}
+.kpi-val{font-family:'Montserrat',sans-serif;font-weight:900;font-size:26px;line-height:1;margin-bottom:4px;color:#fff;}
+.kpi-val.y{color:var(--y);}
+.kpi-val.g{color:var(--grn);}
+.kpi-val.r{color:var(--red);}
+.kpi-meta{color:var(--g500);font-size:10px;}
+
+/* ── MAIN ── */
+.main{max-width:1500px;margin:0 auto;padding:28px 32px;}
+
+/* ── FILTER TABS ── */
+.tab{background:var(--wh);border:1.5px solid var(--g200);color:var(--g500);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;padding:7px 16px;border-radius:99px;cursor:pointer;transition:all .15s;letter-spacing:.02em;}
+.tab:hover{border-color:var(--y);color:var(--blk);}
+.tab.on{background:var(--y);border-color:var(--y);color:var(--navy);}
+
+/* ── SECTION HEADER ── */
+.sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+.sec-title{font-family:'Montserrat',sans-serif;font-size:14px;font-weight:700;color:var(--blk);}
+.sec-tag{background:var(--y);color:var(--navy);font-size:9px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:.05em;text-transform:uppercase;}
+
+/* ── CARD ── */
+.card{background:var(--wh);border-radius:var(--r);box-shadow:var(--sh);padding:22px;}
+.card-title{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:var(--blk);margin-bottom:3px;}
+.card-sub{font-size:10px;color:var(--g400);margin-bottom:18px;}
+
+/* ── CHART GRIDS ── */
+.chart-row{display:grid;grid-template-columns:1.7fr 0.95fr 0.95fr;gap:18px;margin-bottom:22px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px;}
+.full-card{margin-bottom:22px;}
+
+/* ── LEADERBOARD ── */
+.lb-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--g100);}
+.lb-item:last-child{border-bottom:none;}
+.lb-rank{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:900;color:var(--g200);width:24px;text-align:center;flex-shrink:0;}
+.lb-rank.top{color:var(--y);}
+.lb-info{flex:1;min-width:0;}
+.lb-name{font-size:12px;font-weight:600;color:var(--blk);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lb-ind{font-size:10px;color:var(--g400);}
+.lb-bar-wrap{width:54px;height:4px;background:var(--g100);border-radius:99px;overflow:hidden;flex-shrink:0;}
+.lb-bar{height:100%;border-radius:99px;}
+.lb-g{background:var(--grn);}
+.lb-r{background:var(--red);}
+.lb-pct{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;text-align:right;min-width:76px;flex-shrink:0;}
+.lb-pct.pos{color:var(--grn);}
+.lb-pct.neg{color:var(--red);}
+
+/* ── RED FLAGS ── */
+.rf-item{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:rgba(239,68,68,.04);border:1px solid rgba(239,68,68,.12);border-radius:8px;margin-bottom:8px;}
+.rf-ico{font-size:14px;flex-shrink:0;margin-top:1px;}
+.rf-body{flex:1;min-width:0;}
+.rf-name{font-size:12px;font-weight:600;color:var(--blk);}
+.rf-detail{font-size:10px;color:var(--g500);margin-top:1px;}
+.rf-pct{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:var(--red);flex-shrink:0;}
+
+/* ── TABLE ── */
+.tbl-ctrl{display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+.search{border:1.5px solid var(--g200);border-radius:8px;padding:8px 14px;font-size:12px;font-family:'Inter',sans-serif;color:var(--blk);outline:none;background:var(--wh);flex:1;max-width:300px;transition:border .15s;}
+.search:focus{border-color:var(--y);}
+.search::placeholder{color:var(--g400);}
+.cnt-badge{background:var(--g100);color:var(--g500);font-size:10px;font-weight:600;padding:4px 10px;border-radius:99px;}
+.tbl-wrap{background:var(--wh);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;}
+.dt{width:100%;border-collapse:collapse;font-size:11px;}
+.dt th{background:var(--g50);padding:10px 12px;text-align:left;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;color:var(--g500);letter-spacing:.09em;text-transform:uppercase;border-bottom:1px solid var(--g200);cursor:pointer;user-select:none;white-space:nowrap;}
+.dt th:hover{color:var(--blk);}
+.dt th.srt{color:var(--navy);}
+.dt th.srt::after{content:' ↓';}
+.dt th.srt.asc::after{content:' ↑';}
+.dt td{padding:10px 12px;border-bottom:1px solid var(--g100);color:var(--blk);vertical-align:middle;}
+.dt tr:last-child td{border-bottom:none;}
+.dt tr:hover td{background:var(--g50);}
+.pill{display:inline-block;font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;letter-spacing:.03em;font-family:'Montserrat',sans-serif;}
+.p-fashion{background:#EDE9FE;color:#6D28D9;}
+.p-bh{background:#FCE7F3;color:#BE185D;}
+.p-trading{background:#DBEAFE;color:#1D4ED8;}
+.p-fb{background:#FEF3C7;color:#92400E;}
+.p-services{background:#D1FAE5;color:#065F46;}
+.p-clinic{background:#FFE4E6;color:#9F1239;}
+.gc{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;}
+.gc.pos{color:var(--grn);}
+.gc.neg{color:var(--red);}
+.gc.na{color:var(--g400);}
+.auto-row{display:flex;align-items:center;gap:4px;font-size:10px;}
+.auto-arrow{color:var(--y);font-weight:700;}
+
+/* ── TARGET PROGRESS ── */
+.prog-wrap{width:60px;height:4px;background:var(--g100);border-radius:99px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:5px;}
+.prog-fill{height:100%;border-radius:99px;background:var(--y);}
+
+/* ── FOOTER ── */
+.ftr{background:var(--navy);padding:18px 32px;text-align:center;color:var(--g400);font-size:10px;border-top:1px solid rgba(254,225,0,.1);}
+.ftr span{color:var(--y);}
+
+/* ── CHART HEIGHT CLASSES (responsive-friendly) ── */
+.ch-sm{position:relative;height:210px;}
+.ch-lg{position:relative;height:420px;}
+
+/* ── SCROLLABLE TABS ── */
+.tabs{display:flex;gap:8px;margin-bottom:24px;align-items:center;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{flex-shrink:0;}
+
+/* ── TABLE MIN WIDTH (prevents crushing) ── */
+.dt{min-width:700px;}
+.scrollx{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+
+/* ── BREAKPOINT: 1280px — Large Tablet / Small Desktop ── */
+@media(max-width:1280px){
+  .main{padding:24px;}
+  .kpi-val{font-size:23px;}
+}
+
+/* ── BREAKPOINT: 1100px — Tablet Landscape ── */
+@media(max-width:1100px){
+  .chart-row{grid-template-columns:1fr 1fr;}
+  .chart-row .card:first-child{grid-column:1/-1;}
+  .kpi-grid{grid-template-columns:repeat(4,1fr);}
+}
+
+/* ── BREAKPOINT: 900px — Tablet Portrait ── */
+@media(max-width:900px){
+  .hero{padding:36px 24px 44px;}
+  .hero-title{font-size:28px;}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:12px;}
+  .kpi-val{font-size:22px;}
+  .main{padding:20px;}
+  .two-col{grid-template-columns:1fr;}
+  .hdr-title{font-size:12px;}
+}
+
+/* ── BREAKPOINT: 768px — Mobile ── */
+@media(max-width:768px){
+  .hdr{padding:0 14px;height:54px;}
+  .hdr-title{max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;}
+  .badge{font-size:11px;padding:3px 9px;}
+  .hero{padding:28px 16px 36px;}
+  .hero-title{font-size:24px;line-height:1.12;}
+  .hero-sub{font-size:11px;margin-bottom:28px;}
+  .hero-eyebrow{font-size:9px;}
+  .main{padding:16px;}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
+  .kpi{padding:14px 16px;}
+  .kpi-val{font-size:20px;}
+  .kpi-lbl{font-size:9px;}
+  .kpi-meta{font-size:9px;}
+  .chart-row{grid-template-columns:1fr;}
+  .chart-row .card:first-child{grid-column:auto;}
+  .card{padding:16px;}
+  .card-title{font-size:11px;}
+  .ch-sm{height:170px;}
+  .ch-lg{height:260px;}
+  .sec-title{font-size:13px;}
+  .tbl-ctrl{flex-direction:column;align-items:stretch;}
+  .search{max-width:100%;}
+  .ftr{padding:14px 16px;font-size:9px;}
+  .lb-bar-wrap{display:none;}
+}
+
+/* ── BREAKPOINT: 480px — Small Mobile ── */
+@media(max-width:480px){
+  .hdr-right{display:none;}
+  .kpi-grid{gap:8px;}
+  .kpi{padding:12px 12px;}
+  .kpi-val{font-size:18px;}
+  .hero-title{font-size:20px;}
+  .hero{padding:22px 14px 30px;}
+  .kpi-meta{display:none;}
+  .ch-sm{height:155px;}
+  .ch-lg{height:220px;}
+  .dt{min-width:580px;}
+  .hdr{height:50px;}
+}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.card,.kpi{animation:fadeUp .35s ease both;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="badge">BYOND</div>
+    <div class="hdr-title">Growth Consultant — Performance Dashboard</div>
+  </div>
+  <div class="hdr-right">Jan–Mei 2021 &nbsp;·&nbsp; <span>88 Klien Aktif</span></div>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-eyebrow">Byond Success Sdn Bhd · GC Program Report</div>
+  <h1 class="hero-title">Prestasi Klien GC<br><em>Jan–Mei 2021</em></h1>
+  <p class="hero-sub">Dashboard interaktif merangkumi 88 klien aktif merentasi 6 industri. Data terus dari tracker GC.</p>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-lbl">Jumlah Klien</div><div class="kpi-val y" id="k1">—</div><div class="kpi-meta">Merentasi 6 industri</div></div>
+    <div class="kpi"><div class="kpi-lbl">Total Revenue Jan–Mei 2021</div><div class="kpi-val y" id="k2">—</div><div class="kpi-meta">vs <span id="k2b" style="color:var(--g400)">—</span> pada 2020</div></div>
+    <div class="kpi"><div class="kpi-lbl">Klien Meningkat</div><div class="kpi-val g" id="k3">—</div><div class="kpi-meta" id="k3m">—</div></div>
+    <div class="kpi"><div class="kpi-lbl">Klien Menurun</div><div class="kpi-val r" id="k4">—</div><div class="kpi-meta" id="k4m">—</div></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- FILTER TABS -->
+  <div class="tabs">
+    <button class="tab on" data-f="All">Semua (88)</button>
+    <button class="tab" data-f="Fashion">Fashion (14)</button>
+    <button class="tab" data-f="B&H">Beauty & Health (11)</button>
+    <button class="tab" data-f="Trading">Trading (23)</button>
+    <button class="tab" data-f="F&B">F&B (11)</button>
+    <button class="tab" data-f="Services">Services (9)</button>
+    <button class="tab" data-f="Clinic">Klinik & Edu (20)</button>
+  </div>
+
+  <!-- CHARTS ROW -->
+  <div class="chart-row">
+    <div class="card">
+      <div class="card-title" id="revTitle">Revenue Per Industri</div>
+      <div class="card-sub">Jan–Mei 2020 (kelabu) vs Jan–Mei 2021 (kuning) — dalam juta RM</div>
+      <div class="ch-sm"><canvas id="cRev"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Agihan Klien</div>
+      <div class="card-sub">Mengikut industri</div>
+      <div class="ch-sm"><canvas id="cInd"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Status Pertumbuhan</div>
+      <div class="card-sub">Meningkat vs Menurun (subset aktif)</div>
+      <div class="ch-sm"><canvas id="cStatus"></canvas></div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD + RED FLAGS -->
+  <div class="two-col">
+    <div class="card">
+      <div class="sec-hdr"><div class="sec-title">🏆 Top Growers</div><div class="sec-tag">PERTUMBUHAN RM</div></div>
+      <div id="lbList"></div>
+    </div>
+    <div class="card">
+      <div class="sec-hdr"><div class="sec-title">🚨 Red Flag Panel</div><div class="sec-tag">PERLU TINDAKAN</div></div>
+      <div id="rfList"></div>
+    </div>
+  </div>
+
+  <!-- AUTOMATION CHART -->
+  <div class="card full-card">
+    <div class="sec-hdr"><div class="sec-title">Automation Score Tracker</div><div class="sec-tag">SEBELUM vs SEKARANG GC</div></div>
+    <div class="card-sub">Top 20 klien dengan peningkatan automasi tertinggi sejak menyertai program</div>
+    <div class="ch-lg"><canvas id="cAuto"></canvas></div>
+  </div>
+
+  <!-- TABLE -->
+  <div>
+    <div class="sec-hdr"><div class="sec-title">Senarai Penuh Klien</div><div class="sec-tag" id="tblTag">88 KLIEN</div></div>
+    <div class="tbl-ctrl">
+      <input class="search" id="srch" type="text" placeholder="Cari nama atau brand...">
+      <span class="cnt-badge" id="tblCnt">88 klien</span>
+    </div>
+    <div class="tbl-wrap scrollx">
+      <table class="dt" id="mainTbl">
+        <thead><tr>
+          <th onclick="doSort('name')" id="th-name">Nama</th>
+          <th onclick="doSort('industry')" id="th-industry">Industri</th>
+          <th onclick="doSort('janMei2021')" id="th-janMei2021">Rev Jan–Mei 2021</th>
+          <th onclick="doSort('growthAmt')" id="th-growthAmt">+/– (RM)</th>
+          <th onclick="doSort('growthPct')" id="th-growthPct">% Growth</th>
+          <th onclick="doSort('autoNow')" id="th-autoNow">Automation</th>
+          <th onclick="doSort('target')" id="th-target">Target 2021</th>
+          <th onclick="doSort('crNow')" id="th-crNow">CR Sekarang</th>
+          <th>% Target</th>
+        </tr></thead>
+        <tbody id="tblBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<footer class="ftr"><span>BYOND SUCCESS SDN BHD</span> &nbsp;·&nbsp; Growth Consultant Program &nbsp;·&nbsp; Dashboard 2021 &nbsp;·&nbsp; Selangor, Malaysia</footer>
+
+<script>
+// ════════════════════════════════════════════
+// DATA — 88 KLIEN
+// ════════════════════════════════════════════
+const D = [
+  // FASHION (14)
+  {nm:'Fatimah',br:'Maejestica',ind:'Fashion',r20:1270000,jm20:529752,jm21:798426,ga:268674,gp:50.72,ab:20,an:68,cb:0,cn:281000,tg:2000000},
+  {nm:'Afif',br:'Afrah',ind:'Fashion',r20:1130000,jm20:253000,jm21:835000,ga:582000,gp:230.04,ab:30,an:80,cb:180000,cn:356000,tg:3000000},
+  {nm:'Fariq',br:'Scarfeya',ind:'Fashion',r20:2800000,jm20:1151000,jm21:1408000,ga:257000,gp:22.33,ab:70,an:80,cb:300000,cn:300000,tg:6000000},
+  {nm:'Izurien',br:'House Of Ruffle',ind:'Fashion',r20:1100000,jm20:485000,jm21:543000,ga:58000,gp:11.96,ab:10,an:89,cb:0,cn:200000,tg:2000000},
+  {nm:'Ridhuan',br:'Ryan Hayya',ind:'Fashion',r20:3085000,jm20:1270000,jm21:1605000,ga:335000,gp:26.38,ab:30,an:55,cb:180000,cn:370000,tg:5000000},
+  {nm:'Shuhada',br:'Petikita',ind:'Fashion',r20:1790296,jm20:617000,jm21:1500000,ga:883000,gp:143.11,ab:33,an:58,cb:10000,cn:80000,tg:4000000},
+  {nm:'Wan Johan',br:'Lily Petuna',ind:'Fashion',r20:2800000,jm20:2000000,jm21:836000,ga:-1164000,gp:-58.20,ab:40,an:60,cb:0,cn:90000,tg:2000000},
+  {nm:'Noridah',br:'Ashiqmuslim',ind:'Fashion',r20:1350000,jm20:405000,jm21:620000,ga:215000,gp:53.09,ab:40,an:70,cb:100000,cn:130000,tg:2000000},
+  {nm:'Syamimi',br:'',ind:'Fashion',r20:1600000,jm20:600000,jm21:1500000,ga:900000,gp:150.00,ab:60,an:80,cb:30000,cn:190000,tg:3600000},
+  {nm:'Sheila',br:'',ind:'Fashion',r20:7000000,jm20:3500000,jm21:2900000,ga:-600000,gp:-17.14,ab:15,an:65,cb:50000,cn:230000,tg:10000000},
+  {nm:'Izzaty',br:'',ind:'Fashion',r20:2170370,jm20:1480000,jm21:2500000,ga:1020000,gp:68.92,ab:57,an:70,cb:1800000,cn:2100000,tg:3000000},
+  {nm:'Syafnita',br:'',ind:'Fashion',r20:1200000,jm20:750000,jm21:855000,ga:105000,gp:14.00,ab:35,an:95,cb:110000,cn:150000,tg:2600000},
+  {nm:'Haziq',br:'',ind:'Fashion',r20:1500000,jm20:468000,jm21:868000,ga:400000,gp:85.47,ab:25,an:47,cb:166000,cn:250000,tg:2500000},
+  {nm:'Rosli',br:'Bawal',ind:'Fashion',r20:31552000,jm20:12907000,jm21:17000000,ga:4093000,gp:31.71,ab:40,an:85,cb:0,cn:1700000,tg:60000000},
+  // BEAUTY & HEALTH (11)
+  {nm:'Syazwina',br:'',ind:'B&H',r20:1600000,jm20:703000,jm21:530000,ga:-173000,gp:-24.61,ab:30,an:86,cb:0,cn:45000,tg:2000000},
+  {nm:'Balqis',br:'Meribelle',ind:'B&H',r20:3020000,jm20:1440000,jm21:1600000,ga:160000,gp:11.11,ab:40,an:88,cb:108000,cn:703000,tg:5000000},
+  {nm:'Syafiqa',br:'Melvin',ind:'B&H',r20:5000000,jm20:2600000,jm21:2700000,ga:100000,gp:3.85,ab:50,an:70,cb:2500000,cn:1500000,tg:10000000},
+  {nm:'Kak Nik',br:'',ind:'B&H',r20:13000000,jm20:4500000,jm21:3400000,ga:-1100000,gp:-24.44,ab:30,an:85,cb:80000,cn:1000000,tg:15000000},
+  {nm:'Sukey',br:'',ind:'B&H',r20:1493000,jm20:611000,jm21:585000,ga:-26000,gp:-4.26,ab:20,an:50,cb:341000,cn:373000,tg:1700000},
+  {nm:'Atiqah Ali',br:'',ind:'B&H',r20:1452000,jm20:789407,jm21:587135,ga:-202272,gp:-25.62,ab:20,an:54,cb:200000,cn:120000,tg:2000000},
+  {nm:'Norelyna',br:'77 Nutrion',ind:'B&H',r20:500000,jm20:35000,jm21:777000,ga:742000,gp:2120.00,ab:30,an:60,cb:100000,cn:0,tg:4000000},
+  {nm:'Yuzril',br:'',ind:'B&H',r20:1877000,jm20:746000,jm21:929000,ga:183000,gp:24.53,ab:30,an:80,cb:231000,cn:424000,tg:3000000},
+  {nm:'Basheri',br:'',ind:'B&H',r20:4800000,jm20:1100000,jm21:2400000,ga:1300000,gp:118.18,ab:70,an:80,cb:1100000,cn:650000,tg:8000000},
+  {nm:'Fida',br:'',ind:'B&H',r20:3087000,jm20:455103,jm21:5402000,ga:4946897,gp:1086.98,ab:10,an:80,cb:746000,cn:1224547,tg:10000000},
+  {nm:'Ayu Athika',br:'',ind:'B&H',r20:1000000,jm20:274000,jm21:636000,ga:362000,gp:132.12,ab:63,an:75,cb:94000,cn:235000,tg:1800000},
+  // TRADING (23)
+  {nm:'Hamidah',br:'Kedai Runcit',ind:'Trading',r20:3121000,jm20:1488000,jm21:1391000,ga:-97000,gp:-6.52,ab:30,an:80,cb:180000,cn:180000,tg:3300000},
+  {nm:'Hanis',br:'Bearmom',ind:'Trading',r20:530000,jm20:10000,jm21:1267450,ga:1257450,gp:12575,ab:37,an:70,cb:150000,cn:450000,tg:6600000},
+  {nm:'Athirah',br:'Kedai Bakeri',ind:'Trading',r20:1561000,jm20:885470,jm21:552791,ga:-332679,gp:-37.57,ab:0,an:90,cb:0,cn:50000,tg:1561000},
+  {nm:'Fuad',br:'Phone',ind:'Trading',r20:876000,jm20:378000,jm21:360000,ga:-18000,gp:-4.76,ab:25,an:46,cb:80000,cn:110000,tg:1600000},
+  {nm:'Suhaida',br:'Afi Healthcare',ind:'Trading',r20:3100000,jm20:1200000,jm21:1400000,ga:200000,gp:17,ab:30,an:80,cb:300000,cn:520000,tg:3600000},
+  {nm:'Amalina',br:'Farmfresh',ind:'Trading',r20:2414957,jm20:1000000,jm21:924426,ga:-75574,gp:-7.56,ab:0,an:45,cb:10000,cn:60000,tg:4000000},
+  {nm:'Safrizal',br:'Fleur',ind:'Trading',r20:6682000,jm20:1797000,jm21:2741000,ga:944000,gp:53,ab:65,an:80,cb:595000,cn:307000,tg:10000000},
+  {nm:'Siti Salmah',br:'Emas 916',ind:'Trading',r20:7052000,jm20:1200000,jm21:4100000,ga:2900000,gp:242,ab:30,an:90,cb:123000,cn:255000,tg:10000000},
+  {nm:'Ikrami',br:'Aqiqah',ind:'Trading',r20:827232,jm20:10000,jm21:1527000,ga:1517000,gp:15170,ab:30,an:88,cb:10000,cn:154000,tg:8000000},
+  {nm:'Asyraf',br:'Yana Decor',ind:'Trading',r20:1157000,jm20:477844,jm21:824598,ga:346754,gp:73,ab:40,an:75,cb:86000,cn:290000,tg:3000000},
+  {nm:'Faiszal',br:'Gold Plated',ind:'Trading',r20:1826000,jm20:558000,jm21:1548000,ga:990000,gp:177,ab:55,an:90,cb:0,cn:120000,tg:4200000},
+  {nm:'Faris',br:'Suamisihat',ind:'Trading',r20:3700000,jm20:943400,jm21:1847000,ga:903600,gp:96,ab:20,an:50,cb:680000,cn:1000000,tg:8000000},
+  {nm:'Afiq',br:'Quran',ind:'Trading',r20:2559000,jm20:1343000,jm21:1900000,ga:557000,gp:41,ab:50,an:85,cb:350000,cn:990000,tg:5000000},
+  {nm:'Hasnur',br:'Reseller',ind:'Trading',r20:5410000,jm20:1930000,jm21:3050000,ga:1120000,gp:58,ab:40,an:65,cb:200000,cn:370000,tg:8000000},
+  {nm:'Imran',br:'Phone',ind:'Trading',r20:4761000,jm20:2097000,jm21:3714000,ga:1617000,gp:77,ab:62,an:95,cb:0,cn:304000,tg:10000000},
+  {nm:'Annas',br:'Mr Absorber',ind:'Trading',r20:7150000,jm20:1990000,jm21:4520000,ga:2530000,gp:127,ab:50,an:75,cb:298000,cn:750000,tg:10000000},
+  {nm:'Danial',br:'Phone',ind:'Trading',r20:2877733,jm20:992779,jm21:4130000,ga:3137221,gp:316,ab:10,an:38,cb:0,cn:154000,tg:10000000},
+  {nm:'Khairulnaim',br:'Phone',ind:'Trading',r20:2869000,jm20:882000,jm21:4300000,ga:3418000,gp:388,ab:30,an:60,cb:0,cn:55000,tg:11000000},
+  {nm:'Nurhamiza',br:'Tuala',ind:'Trading',r20:2500000,jm20:532000,jm21:4600000,ga:4068000,gp:765,ab:20,an:80,cb:84800,cn:415000,tg:12000000},
+  {nm:'Azli',br:'Leyna',ind:'Trading',r20:22000000,jm20:6600000,jm21:8400000,ga:1800000,gp:27,ab:40,an:70,cb:2500000,cn:2300000,tg:40000000},
+  {nm:'Faiz',br:'Phone',ind:'Trading',r20:10000000,jm20:2200000,jm21:13800000,ga:11600000,gp:527,ab:30,an:83,cb:0,cn:157000,tg:33200000},
+  {nm:'Zuhairi',br:'Kereta',ind:'Trading',r20:40430000,jm20:16590000,jm21:23410000,ga:6820000,gp:41,ab:35,an:35,cb:0,cn:430000,tg:45000000},
+  {nm:'Zulkifli',br:'Emas',ind:'Trading',r20:0,jm20:0,jm21:67600000,ga:0,gp:0,ab:70,an:80,cb:0,cn:511000,tg:120000000},
+  // F&B (11)
+  {nm:'Asiqin',br:'',ind:'F&B',r20:1030000,jm20:652000,jm21:1400000,ga:748000,gp:115,ab:58,an:87,cb:100000,cn:215000,tg:3300000},
+  {nm:'Wan Farhanah',br:'',ind:'F&B',r20:1431000,jm20:560544,jm21:891000,ga:330456,gp:59,ab:20,an:70,cb:130000,cn:191000,tg:2100000},
+  {nm:'Lili',br:'',ind:'F&B',r20:211000,jm20:109000,jm21:328000,ga:219000,gp:201,ab:60,an:80,cb:0,cn:26000,tg:800000},
+  {nm:'Aisha',br:'',ind:'F&B',r20:2600000,jm20:860000,jm21:1670000,ga:810000,gp:94,ab:10,an:30,cb:120000,cn:420000,tg:3100000},
+  {nm:'Mahfudzah',br:'',ind:'F&B',r20:2700000,jm20:812000,jm21:1700000,ga:888000,gp:109,ab:30,an:71,cb:228000,cn:420000,tg:6000000},
+  {nm:'Zahid',br:'',ind:'F&B',r20:2400000,jm20:677000,jm21:1100000,ga:423000,gp:62,ab:70,an:70,cb:200000,cn:110000,tg:3500000},
+  {nm:'Hanif',br:'',ind:'F&B',r20:1960000,jm20:687000,jm21:700000,ga:13000,gp:2,ab:50,an:70,cb:0,cn:25000,tg:2500000},
+  {nm:'Masrupawan',br:'',ind:'F&B',r20:335000,jm20:69000,jm21:515000,ga:446000,gp:646,ab:10,an:65,cb:30000,cn:0,tg:1000000},
+  {nm:'Sofiani',br:'',ind:'F&B',r20:1120000,jm20:397000,jm21:558000,ga:161000,gp:41,ab:25,an:37,cb:0,cn:7000,tg:2000000},
+  {nm:'Sharisa',br:'',ind:'F&B',r20:1670000,jm20:558655,jm21:741365,ga:182710,gp:33,ab:5,an:38,cb:20000,cn:120000,tg:3000000},
+  {nm:'Nik Nur Afifah',br:'',ind:'F&B',r20:6000000,jm20:615000,jm21:1400000,ga:785000,gp:128,ab:40,an:90,cb:400000,cn:160000,tg:6000000},
+  // SERVICES (9)
+  {nm:'Rico',br:'',ind:'Services',r20:4400000,jm20:831000,jm21:409000,ga:-422000,gp:-51,ab:70,an:70,cb:100000,cn:100000,tg:6000000},
+  {nm:'Azim',br:'',ind:'Services',r20:1686000,jm20:250000,jm21:1100000,ga:850000,gp:340,ab:40,an:90,cb:500000,cn:650000,tg:3800000},
+  {nm:'Rizal',br:'',ind:'Services',r20:3572855,jm20:1263804,jm21:1124265,ga:-139539,gp:-11,ab:21,an:63,cb:622000,cn:878000,tg:3500000},
+  {nm:'Isnain',br:'',ind:'Services',r20:2200000,jm20:658000,jm21:1400000,ga:742000,gp:113,ab:66,an:78,cb:220000,cn:300000,tg:4000000},
+  {nm:'Rivfai',br:'',ind:'Services',r20:2400000,jm20:789000,jm21:2100000,ga:1311000,gp:166,ab:10,an:36,cb:100000,cn:550000,tg:5000000},
+  {nm:'Zaidi',br:'',ind:'Services',r20:909000,jm20:258000,jm21:478000,ga:220000,gp:85,ab:75,an:85,cb:100000,cn:130000,tg:1300000},
+  {nm:'Zainuddin',br:'',ind:'Services',r20:1300000,jm20:394000,jm21:630000,ga:236000,gp:60,ab:37,an:62,cb:0,cn:0,tg:2000000},
+  {nm:'Ain Adam',br:'',ind:'Services',r20:1575000,jm20:340000,jm21:1500000,ga:1160000,gp:341,ab:43,an:68,cb:0,cn:312514,tg:2000000},
+  {nm:'Hanni',br:'',ind:'Services',r20:8000000,jm20:2600000,jm21:6400000,ga:3800000,gp:146,ab:50,an:85,cb:400000,cn:900000,tg:24000000},
+  // CLINIC & EDUCATION (20)
+  {nm:'Faiz',br:'Klinik',ind:'Clinic',r20:1662000,jm20:483,jm21:1081000,ga:1080517,gp:99999,ab:35,an:80,cb:522000,cn:840000,tg:2500000},
+  {nm:'Farhanah',br:'Klinik',ind:'Clinic',r20:1310000,jm20:365000,jm21:661000,ga:296000,gp:81,ab:50,an:68,cb:100000,cn:446000,tg:1800000},
+  {nm:'Syazwan',br:'Klinik',ind:'Clinic',r20:633000,jm20:175000,jm21:425000,ga:250000,gp:143,ab:20,an:65,cb:36000,cn:298000,tg:1480000},
+  {nm:'Azwa',br:'Edu',ind:'Clinic',r20:700000,jm20:355000,jm21:366000,ga:11000,gp:3,ab:50,an:95,cb:0,cn:288000,tg:1000000},
+  {nm:'Amalia',br:'Edu',ind:'Clinic',r20:957000,jm20:329450,jm21:397263,ga:67813,gp:21,ab:10,an:80,cb:0,cn:200000,tg:1000000},
+  {nm:'Sheriena',br:'Edu',ind:'Clinic',r20:869235,jm20:377000,jm21:398000,ga:21000,gp:6,ab:10,an:80,cb:220000,cn:273000,tg:1200000},
+  {nm:'Norleen',br:'Edu',ind:'Clinic',r20:2000000,jm20:1300000,jm21:987000,ga:-313000,gp:-24,ab:10,an:90,cb:568000,cn:968000,tg:1400000},
+  {nm:'Syed',br:'Klinik',ind:'Clinic',r20:2000000,jm20:473000,jm21:1191000,ga:718000,gp:152,ab:85,an:85,cb:42000,cn:1017000,tg:3000000},
+  {nm:'Hafidz',br:'Klinik',ind:'Clinic',r20:1200000,jm20:320000,jm21:1130000,ga:810000,gp:253,ab:20,an:60,cb:0,cn:448000,tg:3000000},
+  {nm:'Izaza',br:'Klinik',ind:'Clinic',r20:1399332,jm20:431992,jm21:586689,ga:154697,gp:36,ab:80,an:80,cb:543775,cn:907000,tg:2400000},
+  {nm:'Akmal Marsidi',br:'Edu',ind:'Clinic',r20:748000,jm20:277000,jm21:495000,ga:218000,gp:79,ab:10,an:85,cb:419000,cn:677000,tg:1085000},
+  {nm:'Noraszleen',br:'Klinik',ind:'Clinic',r20:2400000,jm20:1070000,jm21:921334,ga:-148666,gp:-14,ab:40,an:80,cb:691000,cn:800000,tg:2400000},
+  {nm:'Noraziah',br:'Klinik',ind:'Clinic',r20:735281,jm20:220000,jm21:513000,ga:293000,gp:133,ab:20,an:60,cb:0,cn:320000,tg:1500000},
+  {nm:'Farhah',br:'Klinik',ind:'Clinic',r20:1800000,jm20:594000,jm21:1200000,ga:606000,gp:102,ab:27,an:60,cb:0,cn:800000,tg:3000000},
+  {nm:'Siti Sabariah',br:'Klinik',ind:'Clinic',r20:2200000,jm20:766000,jm21:1000000,ga:234000,gp:31,ab:50,an:70,cb:0,cn:136000,tg:2700000},
+  {nm:'Jayshree',br:'Klinik',ind:'Clinic',r20:868061,jm20:271000,jm21:424577,ga:153577,gp:57,ab:16,an:73,cb:843000,cn:1200000,tg:1500000},
+  {nm:'Norizan',br:'Edu',ind:'Clinic',r20:2500000,jm20:883000,jm21:1300000,ga:417000,gp:47,ab:0,an:90,cb:580000,cn:920000,tg:4000000},
+  {nm:'Nurhani',br:'Edu',ind:'Clinic',r20:1775000,jm20:1033678,jm21:905164,ga:-128514,gp:-12,ab:0,an:0,cb:0,cn:0,tg:0},
+  {nm:'Nor Adibah',br:'Klinik',ind:'Clinic',r20:4500000,jm20:1500000,jm21:2200000,ga:700000,gp:47,ab:10,an:90,cb:10000,cn:400000,tg:5000000},
+  {nm:'Azri',br:'Klinik',ind:'Clinic',r20:7700000,jm20:2100000,jm21:4600000,ga:2500000,gp:119,ab:50,an:80,cb:1500000,cn:0,tg:0},
+];
+
+// ════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════
+const IND = ['Fashion','B&H','Trading','F&B','Services','Clinic'];
+const IND_LABELS = ['Fashion','B&H','Trading','F&B','Services','Klinik & Edu'];
+const IND_COLOR = {Fashion:'#7C3AED','B&H':'#BE185D',Trading:'#1D4ED8','F&B':'#D97706',Services:'#059669',Clinic:'#DC2626'};
+const PILL = {Fashion:'p-fashion','B&H':'p-bh',Trading:'p-trading','F&B':'p-fb',Services:'p-services',Clinic:'p-clinic'};
+
+function rm(n){
+  if(n>=1000000)return'RM'+(n/1000000).toFixed(1)+'jt';
+  if(n>=1000)return'RM'+(n/1000).toFixed(0)+'k';
+  return'RM'+n.toLocaleString();
+}
+function rmf(n){return'RM'+n.toLocaleString('en-MY');}
+
+let activeF='All', srchQ='', srtK='jm21', srtD=true;
+
+function filtered(){
+  let d=[...D];
+  if(activeF!=='All') d=d.filter(c=>c.ind===activeF);
+  if(srchQ){const q=srchQ.toLowerCase();d=d.filter(c=>c.nm.toLowerCase().includes(q)||c.br.toLowerCase().includes(q));}
+  return d;
+}
+
+// ════════════════════════════════════════════
+// KPI INIT
+// ════════════════════════════════════════════
+function initKPI(){
+  const t21=D.reduce((s,c)=>s+c.jm21,0);
+  const t20=D.reduce((s,c)=>s+c.jm20,0);
+  const grw=D.filter(c=>c.ga>0).length;
+  const dec=D.filter(c=>c.ga<0).length;
+  document.getElementById('k1').textContent='88';
+  // Animated revenue
+  const el=document.getElementById('k2');
+  let step=0,tot=60;
+  const iv=setInterval(()=>{step++;const p=step/tot,e=1-Math.pow(1-p,3),v=t21*e;el.textContent='RM'+(v/1000000).toFixed(1)+'jt';if(step>=tot)clearInterval(iv);},18);
+  document.getElementById('k2b').textContent='RM'+(t20/1000000).toFixed(1)+'jt';
+  // Grow/decline count up
+  let s2=0;const iv2=setInterval(()=>{s2++;document.getElementById('k3').textContent=Math.floor(s2/tot*grw);if(s2>=tot){document.getElementById('k3').textContent=grw;clearInterval(iv2);}},18);
+  let s3=0;const iv3=setInterval(()=>{s3++;document.getElementById('k4').textContent=Math.floor(s3/tot*dec);if(s3>=tot){document.getElementById('k4').textContent=dec;clearInterval(iv3);}},18);
+  document.getElementById('k3m').textContent=((grw/88)*100).toFixed(0)+'% dari 88 klien';
+  document.getElementById('k4m').textContent=((dec/88)*100).toFixed(0)+'% perlu perhatian';
+}
+
+// ════════════════════════════════════════════
+// CHARTS
+// ════════════════════════════════════════════
+let cRev,cInd,cStatus,cAuto;
+
+function buildRevData(industry){
+  if(industry==='All'){
+    return{
+      labels:IND_LABELS,
+      datasets:[
+        {label:'Jan–Mei 2020',data:IND.map(i=>D.filter(c=>c.ind===i).reduce((s,c)=>s+c.jm20,0)/1000000),backgroundColor:'#E5E7EB',borderRadius:4},
+        {label:'Jan–Mei 2021',data:IND.map(i=>D.filter(c=>c.ind===i).reduce((s,c)=>s+c.jm21,0)/1000000),backgroundColor:'#FEE100',borderRadius:4}
+      ]
+    };
+  } else {
+    const cl=D.filter(c=>c.ind===industry);
+    return{
+      labels:cl.map(c=>c.nm),
+      datasets:[
+        {label:'Jan–Mei 2020',data:cl.map(c=>c.jm20/1000),backgroundColor:'#E5E7EB',borderRadius:4},
+        {label:'Jan–Mei 2021',data:cl.map(c=>c.jm21/1000),backgroundColor:'#FEE100',borderRadius:4}
+      ]
+    };
+  }
+}
+
+function initCharts(){
+  const revData=buildRevData('All');
+  cRev=new Chart(document.getElementById('cRev'),{
+    type:'bar',data:revData,
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{family:'Montserrat',size:10,weight:'700'},padding:10}}},scales:{x:{grid:{display:false},ticks:{font:{family:'Inter',size:9}}},y:{grid:{color:'#F3F4F6'},ticks:{font:{family:'Inter',size:9},callback:v=>'RM'+v.toFixed(0)+'jt'}}}}
+  });
+
+  cInd=new Chart(document.getElementById('cInd'),{
+    type:'doughnut',
+    data:{labels:IND_LABELS,datasets:[{data:IND.map(i=>D.filter(c=>c.ind===i).length),backgroundColor:Object.values(IND_COLOR),borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'right',labels:{font:{family:'Inter',size:9},padding:6,boxWidth:9}}}}
+  });
+
+  const grw=D.filter(c=>c.ga>0).length,dec=D.filter(c=>c.ga<0).length,na=D.filter(c=>c.ga===0).length;
+  cStatus=new Chart(document.getElementById('cStatus'),{
+    type:'doughnut',
+    data:{labels:['Meningkat','Menurun','Data N/A'],datasets:[{data:[grw,dec,na],backgroundColor:['#22C55E','#EF4444','#9CA3AF'],borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'right',labels:{font:{family:'Inter',size:9},padding:6,boxWidth:9}}}}
+  });
+
+  // Auto chart — top 20 by delta
+  const ad=[...D].filter(c=>c.an>0).map(c=>({nm:c.nm,d:c.an-c.ab,b:c.ab,a:c.an})).sort((a,b)=>b.d-a.d).slice(0,20);
+  cAuto=new Chart(document.getElementById('cAuto'),{
+    type:'bar',
+    data:{labels:ad.map(d=>d.nm),datasets:[{label:'Sebelum GC',data:ad.map(d=>d.b),backgroundColor:'#D1D5DB',borderRadius:3},{label:'Sekarang',data:ad.map(d=>d.a),backgroundColor:'#FEE100',borderRadius:3}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{family:'Montserrat',size:10,weight:'700'},padding:10}}},scales:{x:{grid:{color:'#F3F4F6'},max:100,ticks:{font:{family:'Inter',size:9},callback:v=>v+'%'}},y:{grid:{display:false},ticks:{font:{family:'Inter',size:9}}}}}
+  });
+}
+
+function updateRevChart(industry){
+  const d=buildRevData(industry);
+  cRev.data.labels=d.labels;
+  cRev.data.datasets[0].data=d.datasets[0].data;
+  cRev.data.datasets[1].data=d.datasets[1].data;
+  cRev.options.scales.y.ticks.callback=industry==='All'?v=>'RM'+v.toFixed(0)+'jt':v=>'RM'+v.toFixed(0)+'k';
+  document.getElementById('revTitle').textContent=industry==='All'?'Revenue Per Industri':'Revenue — '+industry;
+  cRev.update();
+}
+
+function updateStatusChart(industry){
+  const cl=industry==='All'?D:D.filter(c=>c.ind===industry);
+  const grw=cl.filter(c=>c.ga>0).length,dec=cl.filter(c=>c.ga<0).length,na=cl.filter(c=>c.ga===0).length;
+  cStatus.data.datasets[0].data=[grw,dec,na];
+  cStatus.update();
+}
+
+// ════════════════════════════════════════════
+// LEADERBOARD
+// ════════════════════════════════════════════
+function renderLB(){
+  const d=filtered().filter(c=>c.ga>0).sort((a,b)=>b.ga-a.ga).slice(0,10);
+  const max=d[0]?.ga||1;
+  document.getElementById('lbList').innerHTML=d.map((c,i)=>{
+    const bw=Math.min((c.ga/max)*100,100);
+    return`<div class="lb-item">
+      <div class="lb-rank ${i<3?'top':''}">${i+1}</div>
+      <div class="lb-info"><div class="lb-name">${c.nm}${c.br?' · '+c.br:''}</div><div class="lb-ind">${c.ind}</div></div>
+      <div class="lb-bar-wrap"><div class="lb-bar lb-g" style="width:${bw}%"></div></div>
+      <div class="lb-pct pos">+${rm(c.ga)}</div>
+    </div>`;
+  }).join('')||'<p style="color:var(--g400);font-size:11px;text-align:center;padding:16px">Tiada data</p>';
+}
+
+// ════════════════════════════════════════════
+// RED FLAGS
+// ════════════════════════════════════════════
+function renderRF(){
+  const d=filtered().filter(c=>c.ga<0).sort((a,b)=>a.gp-b.gp);
+  document.getElementById('rfList').innerHTML=d.length
+    ?d.map(c=>`<div class="rf-item">
+        <div class="rf-ico">⚠️</div>
+        <div class="rf-body">
+          <div class="rf-name">${c.nm}${c.br?' · '+c.br:''}</div>
+          <div class="rf-detail">${c.ind} &nbsp;·&nbsp; Target: ${c.tg>0?rm(c.tg):'N/A'}</div>
+        </div>
+        <div class="rf-pct">${c.gp.toFixed(1)}%</div>
+      </div>`).join('')
+    :'<div style="text-align:center;padding:20px;color:var(--grn);font-family:Montserrat;font-weight:700;font-size:12px">✅ Semua klien dalam kategori ini meningkat!</div>';
+}
+
+// ════════════════════════════════════════════
+// TABLE
+// ════════════════════════════════════════════
+const SORT_KEYS={name:'nm',industry:'ind',janMei2021:'jm21',growthAmt:'ga',growthPct:'gp',autoNow:'an',target:'tg',crNow:'cn'};
+let sDir={};
+
+function renderTable(){
+  let d=filtered();
+  const key=SORT_KEYS[srtK]||srtK;
+  d.sort((a,b)=>{
+    const av=a[key]??'',bv=b[key]??'';
+    if(typeof av==='string')return srtD?bv.localeCompare(av):av.localeCompare(bv);
+    return srtD?bv-av:av-bv;
+  });
+  document.getElementById('tblCnt').textContent=d.length+' klien';
+  document.getElementById('tblTag').textContent=d.length+' KLIEN';
+  document.getElementById('tblBody').innerHTML=d.map(c=>{
+    const gc=c.ga===0?'na':c.ga>0?'pos':'neg';
+    const gStr=c.ga===0?'N/A':(c.ga>0?'+':'')+rm(c.ga);
+    const gpStr=c.gp===0?'N/A':(c.gp===99999?'Ekstrem ↑':(c.gp>0?'+':'')+c.gp.toFixed(1)+'%');
+    const tPct=c.tg>0?Math.min(Math.round((c.jm21/c.tg)*100),999):0;
+    const tPctColor=tPct>=50?'var(--grn)':tPct>=30?'var(--org)':'var(--red)';
+    return`<tr>
+      <td><strong style="font-size:11px">${c.nm}</strong>${c.br?'<br><span style="color:var(--g400);font-size:9px">'+c.br+'</span>':''}</td>
+      <td><span class="pill ${PILL[c.ind]}">${c.ind}</span></td>
+      <td><strong>${rm(c.jm21)}</strong></td>
+      <td class="gc ${gc}">${gStr}</td>
+      <td class="gc ${gc}">${gpStr}</td>
+      <td><div class="auto-row">${c.ab}% <span class="auto-arrow">→</span> <strong>${c.an}%</strong></div></td>
+      <td style="color:var(--g500)">${c.tg>0?rm(c.tg):'N/A'}</td>
+      <td>${c.cn>0?rm(c.cn):'RM0'}</td>
+      <td>${c.tg>0?`<div class="prog-wrap"><div class="prog-fill" style="width:${Math.min(tPct,100)}%;background:${tPctColor}"></div></div><span style="font-size:10px;font-weight:600;color:${tPctColor}">${tPct}%</span>`:'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function doSort(k){
+  sDir[k]=!sDir[k];srtK=k;srtD=sDir[k];
+  document.querySelectorAll('.dt th').forEach(th=>{th.classList.remove('srt','asc');});
+  const el=document.getElementById('th-'+k);
+  if(el){el.classList.add('srt');if(!srtD)el.classList.add('asc');}
+  renderTable();
+}
+
+// ════════════════════════════════════════════
+// FILTER TABS
+// ════════════════════════════════════════════
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',function(){
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    this.classList.add('on');
+    activeF=this.dataset.f;
+    updateRevChart(activeF);
+    updateStatusChart(activeF);
+    renderLB();renderRF();renderTable();
+  });
+});
+
+// SEARCH
+document.getElementById('srch').addEventListener('input',function(){srchQ=this.value;renderLB();renderRF();renderTable();});
+
+// ════════════════════════════════════════════
+// BOOT
+// ════════════════════════════════════════════
+initKPI();
+initCharts();
+renderLB();
+renderRF();
+renderTable();
+</script>
+</body>
+</html>
